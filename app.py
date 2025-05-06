@@ -32,6 +32,39 @@ if selected_company != "All":
 if len(date_range) == 2:
     df = df[(df["Sale Month"] >= pd.to_datetime(date_range[0])) & (df["Sale Month"] <= pd.to_datetime(date_range[1]))]
 
+# Optional rep filter based on bar chart interaction
+rep_filter = st.session_state.get("selected_rep")
+if rep_filter:
+    st.success(f"Filtered by Rep: {rep_filter}")
+    df = df[df["Rep"] == rep_filter]
+
+# KPIs and other analytics remain unchanged...
+# (existing code here for KPIs, trends, and charts)
+
+# Drill-down chart with interactivity
+st.markdown("### 🧑‍💼 Rep-wise Sales Overview")
+rep_summary = df.groupby("Rep")[["Reported Sale Value", "Actual Sale Value"]].sum().reset_index()
+fig_rep = px.bar(rep_summary, x="Rep", y=["Reported Sale Value", "Actual Sale Value"],
+                 barmode='group', title="Reported vs Actual Sales by Rep", color_discrete_sequence=px.colors.qualitative.Pastel)
+fig_rep.update_traces(marker_line_width=1.5)
+
+# Capture click event
+selected_bar = st.plotly_chart(fig_rep, use_container_width=True)
+
+def plotly_events(fig):
+    from streamlit_plotly_events import plotly_events
+    return plotly_events(fig, click_event=True, override_height=500)
+
+try:
+    from streamlit_plotly_events import plotly_events
+    event_data = plotly_events(fig_rep)
+    if event_data:
+        clicked_rep = event_data[0]['x']
+        st.session_state["selected_rep"] = clicked_rep
+        st.experimental_rerun()
+except ModuleNotFoundError:
+    st.warning("Install streamlit-plotly-events to enable drill-down filtering by Rep. Run: pip install streamlit-plotly-events")
+
 # KPIs
 st.title("📊 Sales Performance Dashboard")
 st.markdown("""
