@@ -68,8 +68,8 @@ col4.metric("📉 Outstanding", f"Rs. {outstanding_amount:,.0f}")
 col5.metric("📈 Collection Ratio", f"{collection_ratio:.2f}%")
 
 # Chart Selector
-st.markdown("### 📊 Customizable Chart Viewer")
-chart_type = st.selectbox("Choose chart type:", ["Bar Chart", "Line Chart", "Pie Chart", "Heatmap", "Data Table", "Filterable Table"])
+st.markdown("### 📊 Chart Viewer")
+chart_type = st.selectbox("Choose chart type:", ["Bar Chart", "Line Chart", "Pie Chart", "Heatmap"])
 
 if chart_type == "Bar Chart":
     sales_summary = df.groupby("Company")[["Reported Sale Value", "Actual Sale Value"]].sum().reset_index()
@@ -99,8 +99,11 @@ elif chart_type == "Heatmap":
                                   title="Outstanding by Company", nbinsx=10, color_continuous_scale="Reds")
     st.plotly_chart(fig_heat, use_container_width=True)
 
-elif chart_type == "Data Table":
-    st.markdown("### 📋 Raw Dataset Viewer")
+# Filterable Table Selector
+st.markdown("### 🔎 Filterable Dataset Table")
+table_view = st.selectbox("View data table:", ["None", "Raw Table", "Filtered Table"])
+
+if table_view == "Raw Table":
     st.dataframe(df, use_container_width=True)
     buffer = BytesIO()
     df.to_excel(buffer, index=False, engine='openpyxl')
@@ -118,8 +121,7 @@ elif chart_type == "Data Table":
         mime="text/csv"
     )
 
-elif chart_type == "Filterable Table":
-    st.markdown("### 🔎 Filterable Dataset Table")
+elif table_view == "Filtered Table":
     col1, col2 = st.columns(2)
     with col1:
         filter_company = st.selectbox("Filter by Company", options=["All"] + sorted(df["Company"].unique()))
