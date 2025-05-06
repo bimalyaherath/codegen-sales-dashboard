@@ -1,22 +1,17 @@
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 
 # Load data
-df = pd.read_excel("dummy_sales_data.xlsx")
+df = pd.read_excel("dummy_sales_data.xlsx", skiprows=2)
+
+# Strip spaces from column headers
+df.columns = df.columns.str.strip()
 
 # Debug: Show column names to verify formatting
 st.write("Columns in Data:", df.columns.tolist())
 
-# Strip spaces from column headers (just in case)
-df.columns = df.columns.str.strip()
-
-# Parse dates
-df["Sale Month"] = pd.to_datetime(df["Sale Month"], format="%b-%Y")
-
-
-# Convert month format
+# Parse date and add formatted month
 df["Sale Month"] = pd.to_datetime(df["Sale Month"], format="%b-%Y")
 df["YearMonth"] = df["Sale Month"].dt.strftime('%Y-%m')
 
