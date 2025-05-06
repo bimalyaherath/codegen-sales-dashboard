@@ -69,7 +69,7 @@ col5.metric("📈 Collection Ratio", f"{collection_ratio:.2f}%")
 
 # Chart Selector
 st.markdown("### 📊 Customizable Chart Viewer")
-chart_type = st.selectbox("Choose chart type:", ["Bar Chart", "Line Chart", "Pie Chart", "Heatmap", "Data Table"])
+chart_type = st.selectbox("Choose chart type:", ["Bar Chart", "Line Chart", "Pie Chart", "Heatmap", "Data Table", "Filterable Table"])
 
 if chart_type == "Bar Chart":
     sales_summary = df.groupby("Company")[["Reported Sale Value", "Actual Sale Value"]].sum().reset_index()
@@ -115,5 +115,38 @@ elif chart_type == "Data Table":
         label="⬇️ Download data as CSV",
         data=csv_data,
         file_name="filtered_sales_data.csv",
+        mime="text/csv"
+    )
+
+elif chart_type == "Filterable Table":
+    st.markdown("### 🔎 Filterable Dataset Table")
+    col1, col2 = st.columns(2)
+    with col1:
+        filter_company = st.selectbox("Filter by Company", options=["All"] + sorted(df["Company"].unique()))
+        if filter_company != "All":
+            df = df[df["Company"] == filter_company]
+    with col2:
+        filter_rep = st.selectbox("Filter by Rep", options=["All"] + sorted(df["Rep"].unique()))
+        if filter_rep != "All":
+            df = df[df["Rep"] == filter_rep]
+
+    min_sale = st.slider("Minimum Reported Sale Value", min_value=int(df["Reported Sale Value"].min()), max_value=int(df["Reported Sale Value"].max()), value=int(df["Reported Sale Value"].min()))
+    df = df[df["Reported Sale Value"] >= min_sale]
+
+    st.dataframe(df, use_container_width=True)
+
+    buffer = BytesIO()
+    df.to_excel(buffer, index=False, engine='openpyxl')
+    st.download_button(
+        label="⬇️ Download filtered data as Excel",
+        data=buffer,
+        file_name="filtered_table_data.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    csv_data = df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="⬇️ Download filtered data as CSV",
+        data=csv_data,
+        file_name="filtered_table_data.csv",
         mime="text/csv"
     )
