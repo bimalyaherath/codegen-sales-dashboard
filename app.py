@@ -6,6 +6,7 @@ from io import BytesIO
 
 # Load data
 @st.cache_data
+
 def load_data():
     df = pd.read_excel("dummy_sales_data.xlsx", sheet_name="Dummy_Sales_Dashboard_Data", header=1)
     df.columns = [
@@ -42,16 +43,37 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-total_reported_sales = df["Reported Sale Value"].sum()
-total_actual_sales = df["Actual Sale Value"].sum()
-total_collections = df[["Payment 1", "Payment 2", "Payment 3"]].sum().sum()
-outstanding_amount = total_actual_sales - total_collections
-collection_ratio = (total_collections / total_actual_sales) * 100 if total_actual_sales > 0 else 0
+# Monthly comparison calculations
+df_monthly = df.copy()
+df_monthly['Month'] = df_monthly['Sale Month'].dt.to_period('M')
+monthly_summary = df_monthly.groupby('Month').agg({
+    "Reported Sale Value": "sum",
+    "Actual Sale Value": "sum",
+    "Payment 1": "sum",
+    "Payment 2": "sum",
+    "Payment 3": "sum"
+}).reset_index()
+monthly_summary['Total Payments'] = monthly_summary['Payment 1'] + monthly_summary['Payment 2'] + monthly_summary['Payment 3']
 
+if len(monthly_summary) >= 2:
+    current = monthly_summary.iloc[-1]
+    previous = monthly_summary.iloc[-2]
+    def trend(val):
+        return "📈" if val >= 0 else "📉"
+    def delta(curr, prev):
+        return f"{trend(curr-prev)} {curr - prev:,.0f}"
+else:
+    current = previous = {k: 0 for k in ['Reported Sale Value', 'Actual Sale Value', 'Total Payments']}
+    def delta(curr, prev): return ""
+
+# Metric cards with MoM trend arrows
 col1, col2, col3 = st.columns(3)
-col1.metric("💼 Reported Sales", f"Rs. {total_reported_sales:,.0f}")
-col2.metric("✅ Actual Sales", f"Rs. {total_actual_sales:,.0f}")
-col3.metric("💰 Cash Collected", f"Rs. {total_collections:,.0f}")
+col1.metric("💼 Reported Sales", f"Rs. {current['Reported Sale Value']:,.0f}", delta(current['Reported Sale Value'], previous['Reported Sale Value']))
+col2.metric("✅ Actual Sales", f"Rs. {current['Actual Sale Value']:,.0f}", delta(current['Actual Sale Value'], previous['Actual Sale Value']))
+col3.metric("💰 Cash Collected", f"Rs. {current['Total Payments']:,.0f}", delta(current['Total Payments'], previous['Total Payments']))
+
+outstanding_amount = current['Actual Sale Value'] - current['Total Payments']
+collection_ratio = (current['Total Payments'] / current['Actual Sale Value']) * 100 if current['Actual Sale Value'] > 0 else 0
 
 col4, col5 = st.columns(2)
 col4.metric("📉 Outstanding", f"Rs. {outstanding_amount:,.0f}")
