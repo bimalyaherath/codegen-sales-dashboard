@@ -6,6 +6,16 @@ import plotly.express as px
 # Load data
 df = pd.read_excel("dummy_sales_data.xlsx")
 
+# Debug: Show column names to verify formatting
+st.write("Columns in Data:", df.columns.tolist())
+
+# Strip spaces from column headers (just in case)
+df.columns = df.columns.str.strip()
+
+# Parse dates
+df["Sale Month"] = pd.to_datetime(df["Sale Month"], format="%b-%Y")
+
+
 # Convert month format
 df["Sale Month"] = pd.to_datetime(df["Sale Month"], format="%b-%Y")
 df["YearMonth"] = df["Sale Month"].dt.strftime('%Y-%m')
