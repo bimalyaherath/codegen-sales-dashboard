@@ -86,3 +86,8 @@ outstanding_summary = df.groupby("Company")["Outstanding"].sum().reset_index()
 fig_heat = px.density_heatmap(outstanding_summary, x="Company", y="Outstanding",
                               title="Outstanding by Company", nbinsx=10, color_continuous_scale="Reds")
 st.plotly_chart(fig_heat, use_container_width=True)
+
+# Expandable dataset view
+st.markdown("### 📋 Raw Dataset Viewer")
+with st.expander("🔽 Click to view full dataset with filters"):
+    st.dataframe(df, use_container_width=True)
