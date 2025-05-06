@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from io import BytesIO
 
 # Load data
 @st.cache_data
@@ -87,7 +88,24 @@ fig_heat = px.density_heatmap(outstanding_summary, x="Company", y="Outstanding",
                               title="Outstanding by Company", nbinsx=10, color_continuous_scale="Reds")
 st.plotly_chart(fig_heat, use_container_width=True)
 
-# Expandable dataset view
+# Expandable dataset view with export
 st.markdown("### 📋 Raw Dataset Viewer")
 with st.expander("🔽 Click to view full dataset with filters"):
     st.dataframe(df, use_container_width=True)
+
+    buffer = BytesIO()
+    df.to_excel(buffer, index=False, engine='openpyxl')
+    st.download_button(
+        label="⬇️ Download data as Excel",
+        data=buffer,
+        file_name="filtered_sales_data.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+    csv_data = df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="⬇️ Download data as CSV",
+        data=csv_data,
+        file_name="filtered_sales_data.csv",
+        mime="text/csv"
+    )
