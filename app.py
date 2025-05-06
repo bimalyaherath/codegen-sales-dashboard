@@ -6,7 +6,6 @@ from io import BytesIO
 
 # Load data
 @st.cache_data
-
 def load_data():
     df = pd.read_excel("dummy_sales_data.xlsx", sheet_name="Dummy_Sales_Dashboard_Data", header=1)
     df.columns = [
@@ -32,51 +31,7 @@ if selected_company != "All":
 if len(date_range) == 2:
     df = df[(df["Sale Month"] >= pd.to_datetime(date_range[0])) & (df["Sale Month"] <= pd.to_datetime(date_range[1]))]
 
-# Optional rep filter based on bar chart interaction
-rep_filter = st.session_state.get("selected_rep")
-if rep_filter:
-    st.success(f"Filtered by Rep: {rep_filter}")
-    df = df[df["Rep"] == rep_filter]
-
-# KPIs and other analytics remain unchanged...
-# (existing code here for KPIs, trends, and charts)
-
-# Drill-down chart with interactivity
-st.markdown("### 🧑‍💼 Rep-wise Sales Overview")
-rep_summary = df.groupby("Rep")[["Reported Sale Value", "Actual Sale Value"]].sum().reset_index()
-fig_rep = px.bar(rep_summary, x="Rep", y=["Reported Sale Value", "Actual Sale Value"],
-                 barmode='group', title="Reported vs Actual Sales by Rep", color_discrete_sequence=px.colors.qualitative.Pastel)
-fig_rep.update_traces(marker_line_width=1.5)
-
-# Capture click event
-selected_bar = st.plotly_chart(fig_rep, use_container_width=True)
-
-def plotly_events(fig):
-    from streamlit_plotly_events import plotly_events
-    return plotly_events(fig, click_event=True, override_height=500)
-
-try:
-    from streamlit_plotly_events import plotly_events
-    event_data = plotly_events(fig_rep)
-    if event_data:
-        clicked_rep = event_data[0]['x']
-        st.session_state["selected_rep"] = clicked_rep
-        st.experimental_rerun()
-except ModuleNotFoundError:
-    st.warning("Install streamlit-plotly-events to enable drill-down filtering by Rep. Run: pip install streamlit-plotly-events")
-
-# KPIs
-st.title("📊 Sales Performance Dashboard")
-st.markdown("""
-<style>
-.metric-label > div {
-    font-size: 20px;
-    font-weight: bold;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# Monthly comparison calculations
+# KPI comparisons
 df_monthly = df.copy()
 df_monthly['Month'] = df_monthly['Sale Month'].dt.to_period('M')
 monthly_summary = df_monthly.groupby('Month').agg({
@@ -99,7 +54,8 @@ else:
     current = previous = {k: 0 for k in ['Reported Sale Value', 'Actual Sale Value', 'Total Payments']}
     def delta(curr, prev): return ""
 
-# Metric cards with MoM trend arrows
+# KPIs
+st.title("📊 Sales Performance Dashboard")
 col1, col2, col3 = st.columns(3)
 col1.metric("💼 Reported Sales", f"Rs. {current['Reported Sale Value']:,.0f}", delta(current['Reported Sale Value'], previous['Reported Sale Value']))
 col2.metric("✅ Actual Sales", f"Rs. {current['Actual Sale Value']:,.0f}", delta(current['Actual Sale Value'], previous['Actual Sale Value']))
@@ -107,47 +63,45 @@ col3.metric("💰 Cash Collected", f"Rs. {current['Total Payments']:,.0f}", delt
 
 outstanding_amount = current['Actual Sale Value'] - current['Total Payments']
 collection_ratio = (current['Total Payments'] / current['Actual Sale Value']) * 100 if current['Actual Sale Value'] > 0 else 0
-
 col4, col5 = st.columns(2)
 col4.metric("📉 Outstanding", f"Rs. {outstanding_amount:,.0f}")
 col5.metric("📈 Collection Ratio", f"{collection_ratio:.2f}%")
 
-# Additional Metrics by Company
-st.markdown("### 🏢 Company-wise Sales Overview")
-sales_summary = df.groupby("Company")[["Reported Sale Value", "Actual Sale Value"]].sum().reset_index()
-fig_sales = px.bar(sales_summary, x="Company", y=["Reported Sale Value", "Actual Sale Value"],
-                   barmode='group', title="Reported vs Actual Sales", color_discrete_sequence=px.colors.qualitative.Set2)
-st.plotly_chart(fig_sales, use_container_width=True)
+# Chart Selector
+st.markdown("### 📊 Customizable Chart Viewer")
+chart_type = st.selectbox("Choose chart type:", ["Bar Chart", "Line Chart", "Pie Chart", "Heatmap", "Data Table"])
 
-# Collections Over Time
-st.markdown("### 📆 Monthly Collection Trends")
-df["Total Payments"] = df[["Payment 1", "Payment 2", "Payment 3"]].sum(axis=1)
-payment_trend = df.groupby("Sale Month")["Total Payments"].sum().reset_index()
-fig_collections = px.area(payment_trend, x="Sale Month", y="Total Payments",
-                          title="Cash Collections Over Time", color_discrete_sequence=['teal'])
-st.plotly_chart(fig_collections, use_container_width=True)
+if chart_type == "Bar Chart":
+    sales_summary = df.groupby("Company")[["Reported Sale Value", "Actual Sale Value"]].sum().reset_index()
+    fig_sales = px.bar(sales_summary, x="Company", y=["Reported Sale Value", "Actual Sale Value"],
+                       barmode='group', title="Reported vs Actual Sales", color_discrete_sequence=px.colors.qualitative.Set2)
+    st.plotly_chart(fig_sales, use_container_width=True)
 
-# Payment distribution
-st.markdown("### 💸 Payment Distribution")
-payment_dist = df[["Payment 1", "Payment 2", "Payment 3"]].sum().reset_index()
-payment_dist.columns = ["Payment Stage", "Amount"]
-fig_payment = px.pie(payment_dist, names="Payment Stage", values="Amount",
-                     title="Payment Stage Distribution", hole=0.4, color_discrete_sequence=px.colors.sequential.RdBu)
-st.plotly_chart(fig_payment, use_container_width=True)
+elif chart_type == "Line Chart":
+    df["Total Payments"] = df[["Payment 1", "Payment 2", "Payment 3"]].sum(axis=1)
+    payment_trend = df.groupby("Sale Month")["Total Payments"].sum().reset_index()
+    fig_collections = px.line(payment_trend, x="Sale Month", y="Total Payments", markers=True,
+                              title="Monthly Collections Trend", color_discrete_sequence=['green'])
+    st.plotly_chart(fig_collections, use_container_width=True)
 
-# Heatmap of Outstanding
-st.markdown("### 🔥 Outstanding Heatmap by Company")
-df["Outstanding"] = df["Actual Sale Value"] - df["Total Payments"]
-outstanding_summary = df.groupby("Company")["Outstanding"].sum().reset_index()
-fig_heat = px.density_heatmap(outstanding_summary, x="Company", y="Outstanding",
-                              title="Outstanding by Company", nbinsx=10, color_continuous_scale="Reds")
-st.plotly_chart(fig_heat, use_container_width=True)
+elif chart_type == "Pie Chart":
+    payment_dist = df[["Payment 1", "Payment 2", "Payment 3"]].sum().reset_index()
+    payment_dist.columns = ["Payment Stage", "Amount"]
+    fig_payment = px.pie(payment_dist, names="Payment Stage", values="Amount",
+                         title="Payment Stage Distribution", hole=0.4, color_discrete_sequence=px.colors.sequential.RdBu)
+    st.plotly_chart(fig_payment, use_container_width=True)
 
-# Expandable dataset view with export
-st.markdown("### 📋 Raw Dataset Viewer")
-with st.expander("🔽 Click to view full dataset with filters"):
+elif chart_type == "Heatmap":
+    df["Total Payments"] = df[["Payment 1", "Payment 2", "Payment 3"]].sum(axis=1)
+    df["Outstanding"] = df["Actual Sale Value"] - df["Total Payments"]
+    outstanding_summary = df.groupby("Company")["Outstanding"].sum().reset_index()
+    fig_heat = px.density_heatmap(outstanding_summary, x="Company", y="Outstanding",
+                                  title="Outstanding by Company", nbinsx=10, color_continuous_scale="Reds")
+    st.plotly_chart(fig_heat, use_container_width=True)
+
+elif chart_type == "Data Table":
+    st.markdown("### 📋 Raw Dataset Viewer")
     st.dataframe(df, use_container_width=True)
-
     buffer = BytesIO()
     df.to_excel(buffer, index=False, engine='openpyxl')
     st.download_button(
@@ -156,7 +110,6 @@ with st.expander("🔽 Click to view full dataset with filters"):
         file_name="filtered_sales_data.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
     csv_data = df.to_csv(index=False).encode('utf-8')
     st.download_button(
         label="⬇️ Download data as CSV",
